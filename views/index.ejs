@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sản phẩm</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <div class="container mx-auto px-4 py-8">
+    <h1 class="text-2xl font-bold mb-6">Danh sách sản phẩm</h1>
+    <form class="mb-8 flex flex-col sm:flex-row items-center gap-3" method="get" action="/">
+      <input type="text" name="q" value="<%= keyword %>" placeholder="Tìm kiếm sản phẩm..." class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition">Tìm kiếm</button>
+    </form>
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      <% products.forEach((product, idx) => { %>
+        <div class="bg-white p-4 rounded-xl shadow flex flex-col items-center cursor-pointer hover:shadow-lg transition" onclick="openModal(<%= idx %>)">
+          <div class="relative w-32 h-32 mb-2">
+            <img src="<%= product.main_image %>" class="w-32 h-32 object-cover rounded" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+            <div class="w-32 h-32 bg-gray-200 rounded flex items-center justify-center text-gray-500 text-xs" style="display:none;">Không có ảnh</div>
+          </div>
+          <h2 class="font-semibold text-lg text-center mb-1"><%= product.name_en %></h2>
+          <p class="text-sm text-green-600 text-center">UK: $<%= product.uk_price %> | US: $<%= product.us_price %></p>
+        </div>
+      <% }) %>
+    </div>
+    <% if (pages > 1) { %>
+      <div class="mt-10 flex justify-center items-center gap-1 select-none">
+        <% // Nút về đầu %>
+        <a href="/?page=1&q=<%= keyword %>" class="px-3 py-1 rounded border bg-white text-gray-700 hover:bg-gray-100 <%= page === 1 ? 'opacity-50 pointer-events-none' : '' %>">&laquo;&laquo;</a>
+        <% // Nút lùi %>
+        <a href="/?page=<%= page - 1 %>&q=<%= keyword %>" class="px-3 py-1 rounded border bg-white text-gray-700 hover:bg-gray-100 <%= page === 1 ? 'opacity-50 pointer-events-none' : '' %>">&laquo;</a>
+        <% let start = Math.max(1, page - 2); %>
+        <% let end = Math.min(pages, page + 2); %>
+        <% if (start > 1) { %>
+          <span class="px-2">...</span>
+        <% } %>
+        <% for (let i = start; i <= end; i++) { %>
+          <a href="/?page=<%= i %>&q=<%= keyword %>" class="px-3 py-1 rounded border transition <%= i === page ? 'bg-blue-500 text-white border-blue-500 font-bold' : 'bg-white text-gray-700 hover:bg-gray-100' %>"><%= i %></a>
+        <% } %>
+        <% if (end < pages) { %>
+          <span class="px-2">...</span>
+        <% } %>
+        <% // Nút tiến %>
+        <a href="/?page=<%= page + 1 %>&q=<%= keyword %>" class="px-3 py-1 rounded border bg-white text-gray-700 hover:bg-gray-100 <%= page === pages ? 'opacity-50 pointer-events-none' : '' %>">&raquo;</a>
+        <% // Nút về cuối %>
+        <a href="/?page=<%= pages %>&q=<%= keyword %>" class="px-3 py-1 rounded border bg-white text-gray-700 hover:bg-gray-100 <%= page === pages ? 'opacity-50 pointer-events-none' : '' %>">&raquo;&raquo;</a>
+      </div>
+    <% } %>
+
+    <!-- Modal -->
+    <div id="productModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+      <div class="bg-white rounded-lg shadow-lg w-[90vw] max-w-5xl max-h-[90vh] p-6 relative flex flex-col">
+        <button onclick="closeModal()" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-3xl leading-none">&times;</button>
+        <div id="modalContent" class="flex-1 flex flex-col items-center justify-center">
+          <div id="modalLoader" class="flex flex-col items-center justify-center">
+            <svg class="animate-spin h-8 w-8 text-blue-600 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
+            <span>Đang tải...</span>
+          </div>
+          <div id="modalDetail" class="hidden w-full overflow-auto" style="max-height:60vh;"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const products = <%- JSON.stringify(products) %>;
+      
+      // Hàm kiểm tra hình ảnh có load được không
+      function checkImageLoad(img) {
+        return new Promise((resolve) => {
+          const testImg = new Image();
+          testImg.onload = () => resolve(true);
+          testImg.onerror = () => resolve(false);
+          testImg.src = img.src;
+        });
+      }
+      
+      // Hàm ẩn hình ảnh bị lỗi
+      function hideBrokenImage(img) {
+        img.style.display = 'none';
+        // Nếu là hình ảnh trong grid sản phẩm, thay bằng placeholder
+        if (img.closest('.grid')) {
+          const placeholder = document.createElement('div');
+          placeholder.className = 'w-32 h-32 bg-gray-200 rounded flex items-center justify-center text-gray-500 text-xs';
+          placeholder.innerHTML = 'Không có ảnh';
+          img.parentNode.replaceChild(placeholder, img);
+        }
+      }
+      
+      // Kiểm tra tất cả hình ảnh khi trang load
+      window.addEventListener('load', async () => {
+        const allImages = document.querySelectorAll('img');
+        for (const img of allImages) {
+          const isLoaded = await checkImageLoad(img);
+          if (!isLoaded) {
+            hideBrokenImage(img);
+          }
+        }
+      });
+      
+      function openModal(idx) {
+        const goods_code = products[idx].goods_code;
+        document.getElementById('productModal').classList.remove('hidden');
+        document.getElementById('modalLoader').classList.remove('hidden');
+        document.getElementById('modalDetail').classList.add('hidden');
+        fetch(`/detail/${goods_code}`)
+          .then(res => res.json())
+          .then(product => {
+            let imagesHtml = '';
+            if (product.images && product.images.length) {
+              imagesHtml = '<div class="flex gap-2 mb-4 overflow-x-auto">' +
+                product.images.map(url => 
+                  `<div class="relative">
+                    <img src="${url}" class="h-28 rounded shadow" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                    <div class="h-28 w-28 bg-gray-200 rounded shadow flex items-center justify-center text-gray-500 text-xs" style="display:none;">Lỗi ảnh</div>
+                   </div>`
+                ).join('') +
+                '</div>';
+            }
+            let variantsHtml = '';
+            if (product.variants && product.variants.length) {
+              variantsHtml = '<div class="mb-4"><b>Biến thể:</b> <ul class="list-disc list-inside">' +
+                product.variants.map(v => '<li>' + v.spec_name + ': ' + v.spec_value + '</li>').join('') +
+                '</ul></div>';
+            }
+            document.getElementById('modalDetail').innerHTML = 
+              '<div class="flex justify-between items-center mb-2">' +
+                '<h2 class="font-semibold text-2xl text-center flex-1">' + product.name_en + '</h2>' +
+                '<div class="flex gap-2">' +
+                  '<button onclick="downloadAllImagesAsJpg(\'' + product.goods_code + '\')" class="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700" title="Tải tất cả ảnh dưới dạng JPG (zip)">Tải JPG</button>' +
+                  '<button onclick="downloadAllImages(\'' + product.goods_code + '\')" class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700" title="Tải tất cả ảnh gốc (zip)">Tải gốc</button>' +
+                '</div>' +
+              '</div>' +
+              '<div class="flex items-center gap-2 mb-4">' +
+                '<span><b>goods_code:</b> <span id="goods_code_text">' + product.goods_code + '</span></span>' +
+                '<button onclick="copyText(\'goods_code_text\')" class="ml-1 px-2 py-1 bg-gray-200 rounded hover:bg-gray-300" title="Copy">📋</button>' +
+              '</div>' +
+              imagesHtml +
+              '<div class="mb-4 flex items-center gap-2"><b>Giá:</b>' +
+                '<span id="uk_price_text">UK: $' + product.uk_price + '</span>' +
+                '<button onclick="copyText(\'uk_price_text\')" class="ml-1 px-2 py-1 bg-gray-200 rounded hover:bg-gray-300" title="Copy">📋</button>' +
+                '<span id="us_price_text">| US: $' + product.us_price + '</span>' +
+                '<button onclick="copyText(\'us_price_text\')" class="ml-1 px-2 py-1 bg-gray-200 rounded hover:bg-gray-300" title="Copy">📋</button>' +
+                '<span id="channel_price_text">| Channel: $' + product.channel_price + '</span>' +
+                '<button onclick="copyText(\'channel_price_text\')" class="ml-1 px-2 py-1 bg-gray-200 rounded hover:bg-gray-300" title="Copy">📋</button>' +
+              '</div>' +
+              variantsHtml +
+              '<div class="prose max-w-none" id="desc_html">' + (product.description_en || '') + '</div>';
+            // Thêm nút tải xuống cho từng ảnh (chỉ cho ảnh load được)
+            document.querySelectorAll('#modalDetail img').forEach(img => {
+              // Kiểm tra ảnh có load được không trước khi thêm nút download
+              checkImageLoad(img).then(isLoaded => {
+                if (isLoaded) {
+                  const url = img.src;
+                  const container = document.createElement('div');
+                  container.className = 'flex gap-1 mt-1';
+                  
+                  // Nút tải ảnh gốc
+                  const btnOriginal = document.createElement('a');
+                  btnOriginal.href = url;
+                  btnOriginal.download = '';
+                  btnOriginal.className = 'px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs';
+                  btnOriginal.innerText = 'Tải gốc';
+                  btnOriginal.title = 'Tải ảnh gốc';
+                  
+                  // Nút tải ảnh JPG
+                  const btnJpg = document.createElement('button');
+                  btnJpg.className = 'px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs';
+                  btnJpg.innerText = 'Tải JPG';
+                  btnJpg.title = 'Tải ảnh dưới dạng JPG';
+                  btnJpg.onclick = () => downloadSingleImageAsJpg(url);
+                  
+                  container.appendChild(btnOriginal);
+                  container.appendChild(btnJpg);
+                  img.parentNode.insertBefore(container, img.nextSibling);
+                }
+              });
+            });
+            document.getElementById('modalLoader').classList.add('hidden');
+            document.getElementById('modalDetail').classList.remove('hidden');
+          })
+          .catch(() => {
+            document.getElementById('modalDetail').innerHTML = '<div class="text-red-600">Không lấy được thông tin sản phẩm.</div>';
+            document.getElementById('modalLoader').classList.add('hidden');
+            document.getElementById('modalDetail').classList.remove('hidden');
+          });
+      }
+      function closeModal() {
+        document.getElementById('productModal').classList.add('hidden');
+      }
+      // Đóng modal khi click ra ngoài
+      document.getElementById('productModal').addEventListener('click', function(e) {
+        if (e.target === this) closeModal();
+      });
+      function copyText(id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const text = el.innerText || el.textContent;
+        navigator.clipboard.writeText(text);
+      }
+      async function downloadAllImages(goods_code) {
+        // Lấy tất cả ảnh trong modal và kiểm tra từng ảnh
+        const imgElements = Array.from(document.querySelectorAll('#modalDetail img'));
+        const validImages = [];
+        
+        // Kiểm tra từng ảnh có load được không
+        for (const img of imgElements) {
+          const isLoaded = await checkImageLoad(img);
+          if (isLoaded) {
+            validImages.push(img.src);
+          }
+        }
+        
+        if (!validImages.length) return alert('Không có ảnh hợp lệ để tải!');
+        
+        // Tải từng ảnh về blob
+        const JSZip = window.JSZip;
+        if (!JSZip) {
+          alert('Đang tải thư viện nén, vui lòng thử lại sau!');
+          return;
+        }
+        const zip = new JSZip();
+        let count = 0;
+        for (const url of validImages) {
+          try {
+            const res = await fetch(url);
+            const blob = await res.blob();
+            const name = url.split('/').pop().split('?')[0];
+            zip.file(name, blob);
+            count++;
+          } catch {}
+        }
+        if (count === 0) return alert('Không thể tải ảnh!');
+        const content = await zip.generateAsync({type:'blob'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(content);
+        a.download = goods_code + '_images.zip';
+        a.click();
+      }
+
+      async function downloadAllImagesAsJpg(goods_code) {
+        // Lấy tất cả ảnh trong modal và kiểm tra từng ảnh
+        const imgElements = Array.from(document.querySelectorAll('#modalDetail img'));
+        const validImages = [];
+        
+        // Kiểm tra từng ảnh có load được không
+        for (const img of imgElements) {
+          const isLoaded = await checkImageLoad(img);
+          if (isLoaded) {
+            validImages.push(img.src);
+          }
+        }
+        
+        if (!validImages.length) return alert('Không có ảnh hợp lệ để tải!');
+        
+        try {
+          const response = await fetch('/download/images-as-jpg', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              goods_code: goods_code,
+              imageUrls: validImages
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error('Lỗi server');
+          }
+
+          const blob = await response.blob();
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = goods_code + '_images_jpg.zip';
+          a.click();
+        } catch (error) {
+          console.error('Lỗi khi tải ảnh JPG:', error);
+          alert('Lỗi khi tải ảnh JPG. Vui lòng thử lại!');
+        }
+      }
+
+      async function downloadSingleImageAsJpg(imageUrl) {
+        try {
+          const response = await fetch('/download/single-image-as-jpg', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              imageUrl: imageUrl
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error('Lỗi server');
+          }
+
+          const blob = await response.blob();
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          
+          // Tạo tên file từ URL
+          const urlParts = imageUrl.split('/');
+          const originalName = urlParts[urlParts.length - 1].split('?')[0];
+          const nameWithoutExt = originalName.substring(0, originalName.lastIndexOf('.'));
+          a.download = nameWithoutExt + '.jpg';
+          
+          a.click();
+        } catch (error) {
+          console.error('Lỗi khi tải ảnh JPG:', error);
+          alert('Lỗi khi tải ảnh JPG. Vui lòng thử lại!');
+        }
+      }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  </div>
+</body>
+</html>
