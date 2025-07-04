@@ -1,28 +1,29 @@
-# Sử dụng image Node chính thức
+# Base image
 FROM node:18-alpine
 
-# Tạo thư mục app và đặt làm thư mục làm việc
+# Tạo thư mục làm việc
 WORKDIR /app
 
-# Copy package.json và package-lock.json trước (tối ưu cache)
+# Copy package files
 COPY package*.json ./
 
-# Cài đặt dependencies production
-RUN npm install --production
-# Cài tailwindcss global để build được trên Linux
-RUN npm install -g tailwindcss
+# Cài toàn bộ dependencies (bao gồm cả dev)
+RUN npm install
 
-# Copy toàn bộ mã nguồn vào container
+# Copy mã nguồn
 COPY . .
 
-# Build CSS production (nếu dùng Tailwind)
+# Build CSS Tailwind (nên làm ở bước build)
 RUN npx tailwindcss -i ./public/css/tailwind.css -o ./public/css/output.css --minify
 
-# Thiết lập biến môi trường production
+# Sau khi build xong, xóa devDependencies để nhẹ hơn
+RUN npm prune --production
+
+# Biến môi trường production
 ENV NODE_ENV=production
 
-# Expose port (mặc định app.js dùng 3001)
+# Expose port
 EXPOSE 3001
 
-# Lệnh chạy app
-CMD ["node", "app.js"] 
+# Chạy ứng dụng
+CMD ["node", "app.js"]
