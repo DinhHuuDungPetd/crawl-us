@@ -13,6 +13,8 @@ RUN npm install
 # Copy mã nguồn
 COPY . .
 
+RUN chmod +x ./node_modules/.bin/tailwindcss
+
 # Build CSS Tailwind (nên làm ở bước build)
 RUN npx tailwindcss -i ./public/css/tailwind.css -o ./public/css/output.css --minify
 
