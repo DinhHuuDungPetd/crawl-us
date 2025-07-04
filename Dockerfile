@@ -9,6 +9,8 @@ COPY package*.json ./
 
 # Cài đặt dependencies production
 RUN npm install --production
+# Cài tailwindcss global để build được trên Linux
+RUN npm install -g tailwindcss
 
 # Copy toàn bộ mã nguồn vào container
 COPY . .
